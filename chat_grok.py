@@ -169,4 +169,4 @@ with st.form(key=f"form_{len(st.session_state.chat_history)}", clear_on_submit=T
 
 # ---------- Footer ----------
 st.markdown("---")
-st.markdown("Made with ❤️ using [Streamlit](https://streamlit.io) and [Groq](https://groq.com) 🚀")
+st.markdown("Press Send Button Twice to get the response.")
