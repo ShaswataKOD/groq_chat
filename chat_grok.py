@@ -161,7 +161,7 @@ with st.form(key=f"form_{len(st.session_state.chat_history)}", clear_on_submit=T
         try:
             response = chat.invoke(st.session_state.chat_history)
             st.session_state.chat_history.append(AIMessage(content=response.content))
-            st.experimental_rerun()
+            st.redisplay()  # Updated line to refresh the chat
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
     elif send:
@@ -169,4 +169,4 @@ with st.form(key=f"form_{len(st.session_state.chat_history)}", clear_on_submit=T
 
 # ---------- Footer ----------
 st.markdown("---")
-
+st.markdown("Made with ❤️ using [Streamlit](https://streamlit.io) and [Groq](https://groq.com) 🚀")
