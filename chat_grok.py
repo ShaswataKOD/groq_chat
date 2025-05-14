@@ -2,17 +2,18 @@ import os
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
+from langchain_core.messages import HumanMessage, AIMessage
 
-# Load environment variables
+# ---------- LOAD ENV or STREAMLIT SECRETS ----------
 load_dotenv()
-groq_api_key = os.getenv("GROQ_API_KEY")
+groq_api_key = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
 
-# Streamlit page config
+# ---------- Streamlit Page Config ----------
 st.set_page_config(page_title="Groq Chatbot", layout="centered")
 
-# Exit if API key missing
+# ---------- Exit if API Key is Missing ----------
 if not groq_api_key:
-    st.error("🚨 Please set the GROQ_API_KEY in your .env file.")
+    st.error("🚨 Please set the GROQ_API_KEY in your .env or Streamlit secrets.")
     st.stop()
 
 # ---------- STYLING ----------
@@ -31,7 +32,7 @@ st.markdown("""
         box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
 
-    .stTextArea textarea {
+    .stTextInput input {
         font-size: 16px;
         border-radius: 10px;
     }
@@ -72,8 +73,12 @@ st.markdown("""
 # ---------- HEADER ----------
 st.markdown("## 🤖 Groq-Powered Chat Assistant")
 
-# ---------- MODEL SELECTION ----------
+# ---------- Model Selection ----------
 model_name = st.selectbox("🔧 Choose Groq Model", ["llama3-8b-8192", "qwen-2.5-32b"])
+
+# ---------- Init Session State ----------
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
 
 # ---------- Init Chat ----------
 try:
@@ -82,21 +87,33 @@ except Exception as e:
     st.error(f"❌ Error initializing ChatGroq: {e}")
     st.stop()
 
-# ---------- USER INPUT ----------
-user_input = st.text_area("💬 Type your question:", placeholder="e.g. Tell me a joke, or explain a concept", height=150)
+# ---------- Chat Input ----------
+user_input = st.text_input("💬 Your message:", key="user_input", placeholder="Ask me anything...")
 
-# ---------- BUTTON + OUTPUT ----------
+# ---------- Send Message ----------
 if st.button("🚀 Send"):
     if user_input.strip():
-        st.markdown(f"<div class='message-user'><strong>You:</strong> {user_input}</div>", unsafe_allow_html=True)
+        # Add user message to history
+        st.session_state.chat_history.append(HumanMessage(content=user_input))
+
         try:
-            response = chat.invoke(user_input)
-            st.markdown(f"<div class='message-ai'><strong>Groq:</strong> {response.content}</div>", unsafe_allow_html=True)
+            # Invoke with full conversation history
+            response = chat.invoke(st.session_state.chat_history)
+
+            # Add AI response to history
+            st.session_state.chat_history.append(AIMessage(content=response.content))
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
     else:
-        st.warning("⚠️ Please enter a message to ask.")
+        st.warning("⚠️ Please enter a message.")
 
-# ---------- FOOTER ----------
+# ---------- Display Chat History ----------
+for msg in st.session_state.chat_history:
+    if isinstance(msg, HumanMessage):
+        st.markdown(f"<div class='message-user'><strong>You:</strong> {msg.content}</div>", unsafe_allow_html=True)
+    elif isinstance(msg, AIMessage):
+        st.markdown(f"<div class='message-ai'><strong>Groq:</strong> {msg.content}</div>", unsafe_allow_html=True)
+
+# ---------- Footer ----------
 st.markdown("---")
 st.markdown("Made with ❤️ using [Streamlit](https://streamlit.io) and [Groq](https://groq.com) 🚀")
