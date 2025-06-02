@@ -24,7 +24,6 @@ st.markdown("""
         background-color: #0f1117;
         color: #e1e1e6;
     }
-
     h1 {
         text-align: center;
         padding: 1rem;
@@ -34,24 +33,20 @@ st.markdown("""
         margin-bottom: 2rem;
         color: #ffffff;
     }
-
     .chat-container {
         display: flex;
         flex-direction: column;
     }
-
     .message {
         display: flex;
         margin-bottom: 1rem;
         max-width: 100%;
     }
-
     .avatar {
         font-size: 28px;
         margin-right: 0.75rem;
         margin-top: 0.2rem;
     }
-
     .bubble-user {
         background: linear-gradient(to right, #3f37c9, #4895ef);
         color: white;
@@ -61,7 +56,6 @@ st.markdown("""
         box-shadow: 0 0 10px rgba(72, 149, 239, 0.3);
         max-width: 80%;
     }
-
     .bubble-ai {
         background-color: #1f1f2e;
         color: #e1e1e6;
@@ -71,7 +65,6 @@ st.markdown("""
         box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
         max-width: 80%;
     }
-
     .stTextInput input {
         background-color: #1c1e26;
         color: #e1e1e6;
@@ -80,12 +73,10 @@ st.markdown("""
         padding: 0.6rem;
         font-size: 16px;
     }
-
     .stTextInput input:focus {
         border-color: #4895ef;
         box-shadow: 0 0 0 0.2rem rgba(72, 149, 239, 0.25);
     }
-
     .stButton button {
         background-color: #4895ef;
         color: white;
@@ -96,16 +87,13 @@ st.markdown("""
         transition: all 0.2s ease;
         margin-top: 0.5rem;
     }
-
     .stButton button:hover {
         background-color: #4361ee;
         transform: scale(1.03);
     }
-
     hr {
         border-top: 1px solid #333;
     }
-
     a {
         color: #91cfff;
     }
@@ -161,7 +149,6 @@ with st.form(key=f"form_{len(st.session_state.chat_history)}", clear_on_submit=T
         try:
             response = chat.invoke(st.session_state.chat_history)
             st.session_state.chat_history.append(AIMessage(content=response.content))
-            st.redisplay()  # Updated line to refresh the chat
         except Exception as e:
             st.error(f"⚠️ Error: {e}")
     elif send:
