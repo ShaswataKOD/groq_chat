@@ -1,127 +1,174 @@
 import os
 import streamlit as st
+import fitz  # PyMuPDF for PDF
+# import docx  # For DOCX
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
-# ---------- Load Environment Variables ----------
+# ---------- Load API Key ----------
 load_dotenv()
 groq_api_key = os.getenv("GROQ_API_KEY") or st.secrets.get("GROQ_API_KEY")
-
-# ---------- Streamlit Page Config ----------
-st.set_page_config(page_title="CodeBot – Groq-Powered Code Assistant", layout="centered")
-
-# ---------- Exit if API Key is Missing ----------
 if not groq_api_key:
-    st.error("🚨 Please set the GROQ_API_KEY in your .env or Streamlit secrets.")
+    st.error("🚨 GROQ_API_KEY not found!")
     st.stop()
 
-# ---------- Utility: Simple Code Intent Filter ----------
-def is_code_related(query: str) -> bool:
-    keywords = [
-        "code", "function", "write a", "build a", "create a", "python", "java",
-        "c++", "javascript", "html", "sql", "algorithm", "data structure",
-        "class", "script", "loop", "array", "object", "bug", "error", "fix"
-    ]
-    return any(kw in query.lower() for kw in keywords)
+# ---------- Page Config ----------
+st.set_page_config(page_title="SmartChat – AI with PDF/DOCX Power", layout="centered")
 
-# ---------- Init ChatBot ----------
-try:
-    chat = ChatGroq(
-        temperature=0.3,
-        model="llama3-8b-8192",
-        groq_api_key=groq_api_key
-    )
-except Exception as e:
-    st.error(f"❌ Error initializing ChatGroq: {e}")
-    st.stop()
+# ---------- Init LangChain Chat ----------
+chat = ChatGroq(
+    temperature=0.5,
+    model="llama3-8b-8192",
+    groq_api_key=groq_api_key
+)
 
-# ---------- Init Session State ----------
+# ---------- Session State ----------
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# ---------- System Prompt: Code-Only Assistant ----------
-if not any(isinstance(msg, SystemMessage) for msg in st.session_state.chat_history):
-    st.session_state.chat_history.insert(0, SystemMessage(
-        content="You are a strict coding assistant. Only respond to programming-related queries and generate code. For any other topics, respond with: '⚠️ I'm a coding assistant and can only respond to programming-related questions.'"
-    ))
+if "doc_text" not in st.session_state:
+    st.session_state.doc_text = ""
 
-# ---------- Chat Display Styling ----------
+# ---------- Extract PDF Text ----------
+def extract_text_from_pdf(uploaded_file):
+    text = ""
+    with fitz.open(stream=uploaded_file.read(), filetype="pdf") as doc:
+        for page in doc:
+            text += page.get_text()
+    return text
+
+# ---------- Extract DOCX Text ----------
+def extract_text_from_docx(uploaded_file):
+    doc = docx.Document(uploaded_file)
+    return "\n".join(p.text for p in doc.paragraphs)
+
+# ---------- Upload and Parse ----------
 st.markdown("""
-    <style>
-    html, body, [class*="css"] {
-        font-family: 'Segoe UI', sans-serif;
-        background-color: #0f1117;
-        color: #e1e1e6;
-    }
-    .chat-container { display: flex; flex-direction: column; }
-    .message { display: flex; margin-bottom: 1rem; max-width: 100%; }
-    .avatar { font-size: 28px; margin-right: 0.75rem; margin-top: 0.2rem; }
-    .bubble-user {
-        background: linear-gradient(to right, #3f37c9, #4895ef);
-        color: white;
-        padding: 0.9rem 1.2rem;
-        border-radius: 12px;
-        font-size: 16px;
-        box-shadow: 0 0 10px rgba(72, 149, 239, 0.3);
-        max-width: 80%;
-    }
-    .bubble-ai {
-        background-color: #1f1f2e;
-        color: #e1e1e6;
-        padding: 0.9rem 1.2rem;
-        border-radius: 12px;
-        font-size: 16px;
-        box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
-        max-width: 80%;
-    }
-    </style>
+<h1 style="text-align:center; font-size: 32px; margin-top: 1rem; margin-bottom: 2rem; color:#8f94fb;">
+🤖 SmartChat – Ask Me Anything with AI!
+</h1>
 """, unsafe_allow_html=True)
 
-# ---------- Title ----------
-st.markdown("## 💻 CodeBot – Groq-Powered Coding Assistant")
+with st.expander("📁 Upload a document (PDF or DOCX)"):
+    uploaded_file = st.file_uploader("", type=["pdf", "docx"])
+    if uploaded_file:
+        file_ext = uploaded_file.name.split(".")[-1].lower()
+        try:
+            if file_ext == "pdf":
+                st.session_state.doc_text = extract_text_from_pdf(uploaded_file)
+            elif file_ext == "docx":
+                st.session_state.doc_text = extract_text_from_docx(uploaded_file)
+            st.success("✅ Document uploaded and processed!")
+        except Exception as e:
+            st.error(f"❌ Failed to read document: {e}")
 
 # ---------- Display Chat History ----------
 st.markdown('<div class="chat-container">', unsafe_allow_html=True)
 for msg in st.session_state.chat_history:
-    if isinstance(msg, HumanMessage):
-        st.markdown(f"""
-        <div class="message" style="justify-content: flex-end;">
-            <div class="bubble-user">{msg.content}</div>
-            <div class="avatar">🧑</div>
-        </div>
-        """, unsafe_allow_html=True)
-    elif isinstance(msg, AIMessage):
-        st.markdown(f"""
-        <div class="message" style="justify-content: flex-start;">
-            <div class="avatar">🤖</div>
-            <div class="bubble-ai">{msg.content}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    role = "🧑" if isinstance(msg, HumanMessage) else "🤖"
+    bubble = "bubble-user" if isinstance(msg, HumanMessage) else "bubble-ai"
+    content = msg.content.replace("\n", "<br>")
+    st.markdown(f"""
+    <div class="message" style="justify-content: {'flex-end' if role == '🧑' else 'flex-start'};">
+        <div class="avatar">{role}</div>
+        <div class="{bubble}">{content}</div>
+    </div>
+    """, unsafe_allow_html=True)
 st.markdown('</div>', unsafe_allow_html=True)
 
-# ---------- Input Form ----------
-with st.form(key=f"form_{len(st.session_state.chat_history)}", clear_on_submit=True):
-    user_input = st.text_input("💬", placeholder="Ask me to write code...")
+# ---------- User Input ----------
+with st.form(key="chat-form", clear_on_submit=True):
+    user_input = st.text_input("💬 Ask anything (about the doc or general)...")
     send = st.form_submit_button("Send")
 
     if send and user_input.strip():
         st.session_state.chat_history.append(HumanMessage(content=user_input))
 
-        if is_code_related(user_input):
-            try:
-                response = chat.invoke(st.session_state.chat_history)
-                st.session_state.chat_history.append(AIMessage(content=response.content))
-            except Exception as e:
-                st.error(f"⚠️ Error: {e}")
-        else:
-            msg = "⚠️ I'm a coding assistant and can only respond to programming-related questions."
-            st.session_state.chat_history.append(AIMessage(content=msg))
+        if st.session_state.doc_text:
+            st.session_state.chat_history.insert(0, SystemMessage(
+                content=f"Refer to the following document when relevant:\n{st.session_state.doc_text[:4000]}"))
 
-    elif send:
-        st.warning("⚠️ Message can't be empty!")
+        try:
+            response = chat.invoke(st.session_state.chat_history)
+            st.session_state.chat_history.append(AIMessage(content=response.content))
+        except Exception as e:
+            st.error(f"⚠️ Error calling Groq: {e}")
 
 # ---------- Footer ----------
 st.markdown("---")
-st.markdown("Made for devs. Ask only programming stuff! 🧠")
-st.markdown("Please Press 'Send' Button twice to get your response")
+
+# ---------- Styling ----------
+st.markdown("""
+<style>
+html, body, [class*="css"] {
+    font-family: 'Segoe UI', sans-serif;
+    background: radial-gradient(circle at top left, #121212, #1e1e2f);
+    color: #e1e1e6;
+    margin: 0;
+    padding: 0;
+}
+.chat-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 1rem 0;
+}
+.avatar {
+    font-size: 26px;
+    margin: 4px 12px 0 12px;
+}
+.bubble-user {
+    background: linear-gradient(to right, #4e54c8, #8f94fb);
+    color: #fff;
+    padding: 12px 16px;
+    border-radius: 16px 16px 4px 16px;
+    box-shadow: 0 0 15px rgba(79, 92, 255, 0.4);
+    font-size: 16px;
+    max-width: 80%;
+    animation: fadeInUp 0.3s ease-out;
+}
+.bubble-ai {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    padding: 12px 16px;
+    border-radius: 16px 16px 16px 4px;
+    font-size: 16px;
+    max-width: 80%;
+    animation: fadeInUp 0.3s ease-out;
+}
+input[type="text"] {
+    background-color: #22232e;
+    border: 1px solid #3b3b4f;
+    border-radius: 10px;
+    padding: 12px;
+    color: #fff;
+    font-size: 16px;
+    width: 100%;
+}
+.stButton>button {
+    background: linear-gradient(to right, #3f51b5, #5c6bc0);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.2s ease;
+    margin-top: 0.5rem;
+}
+.stButton>button:hover {
+    background: linear-gradient(to right, #5c6bc0, #3f51b5);
+    transform: scale(1.03);
+}
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+st.markdown("Please press the send button twice to get the reply")
