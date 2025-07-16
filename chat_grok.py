@@ -124,4 +124,4 @@ with st.form(key=f"form_{len(st.session_state.chat_history)}", clear_on_submit=T
 # ---------- Footer ----------
 st.markdown("---")
 st.markdown("Made for devs. Ask only programming stuff! 🧠")
-st.mardown("Please Press 'Send' Button twice to get your response")
+st.markdown("Please Press 'Send' Button twice to get your response")
